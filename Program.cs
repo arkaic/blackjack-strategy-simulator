@@ -19,16 +19,31 @@ namespace BlackjackSimulator {
         public const int NEXT_ROUND = 1;
         public const int BREAK = 2;
         public static bool takeInsurance = false;
+        public static bool houseStaysOnSoft17 = true;
+        public static bool doubleAllowedAfterSplit = true;
+        public static bool surrendersAllowed = true;
     }
 
     public static class Stats {
-        public static decimal houseBank = 5.00m;
-        public static decimal playerBank = 2.50m;
+        public static decimal houseBank = 0.00m;
+        public static decimal playerBank = 0.00m;
+        public static int wins = 0;
+        public static int losses = 0;
+        public static int pushes = 0;
+        public static int surrenders = 0;
+        public static decimal totalBets = 0.00m;
+
+        //Expected value = wager*(win prob) - wager*(lose prob)
+        //or get calculated values from somewhere
+        //actual value = current (+/-)bankroll divided by total wagers made
+        public double ActualValue() {            
+            return playerBank / totalBets;
+        }
     }
 
     public class Hand {
         public List<int> cards = new List<int>();
-        public decimal wager = 0.00m;
+        public decimal bet = 0.00m;
         public int hardVal = 0;
         public int realVal = 0;
         public bool hasAce = false;
@@ -56,7 +71,7 @@ namespace BlackjackSimulator {
         public bool IsSoft() {
             bool returnVal = (realVal==hardVal) ? false : true;
             return returnVal;
-        }
+        }        
     }
     class Program {
         static void Main(string[] args) {
@@ -79,18 +94,47 @@ namespace BlackjackSimulator {
             PrintCollection(hand.cards);
         }
         static void Test2() {
-            Hand hand = new Hand();
-            if (hand.wager == 0) 
-                Console.WriteLine("wager is");            
-            else 
-                Console.WriteLine("wager is not");
-            Stats.playerBank *= (decimal)1.5;
-            Stats.playerBank *= (decimal)1.5;
-            Console.WriteLine("playerBank * 1.5 * 1.5 = {0}", Stats.playerBank);
+            // rounds up on blackjack payouts to nearest half (1.00, 1.50, 
+            // 2.00, etc);
+            decimal payout = Stats.playerBank * (decimal)1.5;
+            payout *= (decimal)1.5;
+            payout = 5.75m;            
+            Console.WriteLine("{0:C} => {1:C}", payout, Math.Ceiling(payout*2)/2);
         }
         public static void PrintCollection<T>(IEnumerable<T> col) {
             foreach (T item in col)
                 Console.WriteLine(item); // Replace this with your version of printing
+        }
+        public static void GameLoop() {
+            /* 
+               while len(shoe) >= shoesize/5:
+                    setup hands, wagers
+                    deal cards
+                    check for dealer bj
+                    check for dealer ace-bj and insurance
+                    resolve player blackjacks
+                    
+                    loop over hands:
+                       deal card if hand size = 1
+                       check for splitting option
+                       loop for dealing cards:
+                           decisions, decisions
+                       if hand busts or surrenders, do stuff and remove it
+                       else, increment hand counter
+                    
+                    if there are player hands left:
+                        deal to house and evaluate
+                        pay and take
+                    
+                    clear hands
+            */
+        }
+        public static void RunSimulation() {
+            /* while runs:
+                make shoe
+                game loop
+                runs--
+            */
         }
     }
 }
