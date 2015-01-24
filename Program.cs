@@ -22,7 +22,7 @@ namespace BlackjackSimulator {
         public const int K  = 0;
         public const int NEXT_ROUND = 1;
         public const int BREAK = 2;
-        public static bool takeInsurance = false;
+        public static bool doInsurance = false;
         public static bool doubleAllowedAfterSplit = true;
         public static bool surrendersAllowed = true;
         public static bool houseStaysOnSoft17 = true;
@@ -54,6 +54,7 @@ namespace BlackjackSimulator {
     public class Hand {
         public List<int> cards = new List<int>();
         public decimal bet = 0.00m;
+        public decimal insuranceBet = 0.00m;
         public int hardVal = 0;
         public int realVal = 0;
         public bool hasAce = false;
@@ -163,7 +164,7 @@ namespace BlackjackSimulator {
         static void Testing() {
             Console.WriteLine("Blackjack Simulator!!!!!!!!");
             Console.WriteLine("houseBank = {0:C}", Stats.houseBank);
-            Console.WriteLine("playerbank = {0:C}", Stats.houseBank);
+            Console.WriteLine("playerBank = {0:C}", Stats.houseBank);
             Stats.houseBank *= (decimal)1.5;
             Console.WriteLine("Stat.houseBank *= 1.5 = {0:C}", Stats.houseBank);
             Hand hand = new Hand();
@@ -180,8 +181,6 @@ namespace BlackjackSimulator {
             // rounds up on blackjack payouts to nearest half (1.00, 1.50, 
             // 2.00, etc);
             decimal payout = Stats.playerBank * (decimal)1.5;
-            payout *= (decimal)1.5;
-            payout = 5.75m;            
             Console.WriteLine("{0:C} => {1:C}", payout, Math.Ceiling(payout*2)/2);
         }
 
@@ -204,7 +203,6 @@ namespace BlackjackSimulator {
 	    	foreach (Hand hand in hands) {
 	    		hand.DealCard(Globals.shoe.Pop());
 	    	}
-	    	int i = 0;
 	    	foreach (Hand hand in hands) {
 	    		hand.DealCard(Globals.shoe.Pop());
 	    		if (hand.realVal==21 || !hand.isDealer) {
@@ -214,31 +212,87 @@ namespace BlackjackSimulator {
 	    	}
 	    }
 
-	    public static boolean checkFaceupBlackjack(List<Hand> hands, Hand dealer) {	    	
-	    	int numPlayerHands = hands.Count() - 1;
-	    	if ((dealer.cards[0] == 10) || (dealer.cards[1] == 1)) { 
-	    		for (int i = 0; i < numPlayerHands) {
-	    			if (hands[i].realVal < 21) {
-	    				Stats.playerBank -= hands[i].bet;
-	    				Stats.houseBank += hands[i].bet;
-	    				Stats.losses++;
-	    			} else if (hands[i].realVal == 21) {
-	    				Stats.pushes++;
-	    			}
-	    		}
-	    		return true;
-	    	} else {
-	    		return false;
-	    	}
-	    }
+        // Take all bets except for ties
+	    public static void TakeAllBets(List<Hand> hands) {	
+            int numPlayerHands = hands.Count() - 1;
+            for (int i = 0; i < numPlayerHands; i++) {
+                if (hands[i].realVal < 21) {
+                    Stats.playerBank -= hands[i].bet;
+                    Stats.houseBank += hands[i].bet;
+                    Stats.losses++;
+                } else if (hands[i].realVal == 21) {
+                    Stats.pushes++;
+                }
+            }
+        }
+
+        private static void PayAllInsurances(List<Hand> hands) {
+            int numPlayerHands = hands.Count() - 1;
+            for (int i = 0; i < numPlayerHands; i++) {
+                if (hands[i].insuranceBet > 0) {
+                    decimal payout = 2 * hands[i].insuranceBet;
+                    Stats.houseBank -= payout;
+                    Stats.playerBank += payout;
+                }
+            }
+        }
+
+        private static void TakeAllInsurances(List<Hand> hands) {
+            int numPlayerHands = hands.Count() - 1;
+            for (int i = 0; i < numPlayerHands; i++) {
+                Stats.houseBank += hands[i].insuranceBet;
+                Stats.playerBank -= hands[i].insuranceBet;
+                hands[i].insuranceBet = 0.00m;
+            }
+        }
+
+        private static void PayAllBlackjacks(List<Hand> hands) {
+            for (int i = 0; i < Globals.handsWithBJ.Count(); i++) {
+                // Round every blackjack payout up to the nearest half.
+                Hand bjHand = Globals.handsWithBJ[i];
+                decimal payout = Math.Ceiling((decimal)1.5 * bjHand.bet * 2) / 2;
+                Stats.playerBank += payout;
+                Stats.houseBank -= payout;
+                Stats.wins++;
+                hands.Remove(bjHand);
+            }
+        }
+
+        public static bool CheckDealerForBlackjack(List<Hand> hands) {
+            Hand dealer = hands[hands.Count()-1];
+            if (dealer.cards[0]==10 && dealer.cards[1]==1) {
+                TakeAllBets(hands);                
+                return true;
+            } else if (dealer.cards[0] == 1) {
+                if (Globals.doInsurance) {
+                    Console.WriteLine("Doing insurance");
+                    // TODO: implement Setup insurance
+                }
+                if (dealer.cards[1] == 10) {
+                    // Dealer has blackjack
+                    TakeAllBets(hands);
+                    if (Globals.doInsurance) 
+                        PayAllInsurances(hands);
+                    return true;
+                } else {
+                    // Dealer has no blackjack
+                    if (Globals.doInsurance)
+                        TakeAllInsurances(hands);
+                    return false;
+                }        
+            } else {
+                // Dealer is not showing a face or ace
+                return false;
+            }
+        }
 
         public static void GameLoop() {
             /* 
                while len(shoe) >= shoesize/5:
                     x setup hands, wagers
                     x deal cards
-                    check for dealer bj
-                    check for dealer ace-bj and insurance
+                    x check for dealer bj
+                    x check for dealer ace-bj and insurance
                     resolve player blackjacks
                     
                     loop over hands:
@@ -273,7 +327,15 @@ namespace BlackjackSimulator {
                 DealStartingCards(hands);
 
                 // Check dealer for blackjack
+                if (CheckDealerForBlackjack(hands)) {
+                    Console.WriteLine("END ROUND: HOUSE HAS BJ");
+                    continue;
+                }
 
+                // Pay player blackjacks
+                if (Globals.handsWithBJ.Count() > 0) {
+                    PayAllBlackjacks(hands);
+                }
 
                 break; // TODO: remove after debug
             }
@@ -298,7 +360,7 @@ namespace BlackjackSimulator {
         }
 
         public static void Main(string[] args) {
-            RunSimulation(args);
+            RunSimulation(args);            
         }
     }
 }
