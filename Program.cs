@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace BlackjackSimulator {
     public static class Globals {
         public static IShoe shoe;
+        public static List<Hand> handsWithBJ;
         public static int numDecks;
         public static int runs; 
         public const int ORDERED = 1;
@@ -37,8 +38,7 @@ namespace BlackjackSimulator {
         public static int surrenders = 0;
         public static decimal totalBets = 0.00m;
 
-        //Expected value = wager*(win prob) - wager*(lose prob)
-        //or get calculated values from somewhere
+	    //or get calculated values from somewhere
         //actual value = current (+/-)bankroll divided by total wagers made
         public static decimal ActualEdge() {            
             return playerBank / totalBets;
@@ -159,7 +159,7 @@ namespace BlackjackSimulator {
     }
 
 
-    public class Program {
+    public class SimulatorProgram {
         static void Testing() {
             Console.WriteLine("Blackjack Simulator!!!!!!!!");
             Console.WriteLine("houseBank = {0:C}", Stats.houseBank);
@@ -199,11 +199,44 @@ namespace BlackjackSimulator {
 	    	hands.Add(dealer);
 	    }
 
+	    public static void DealStartingCards(List<Hand> hands) {
+	    	Globals.handsWithBJ = new List<Hand>();
+	    	foreach (Hand hand in hands) {
+	    		hand.DealCard(Globals.shoe.Pop());
+	    	}
+	    	int i = 0;
+	    	foreach (Hand hand in hands) {
+	    		hand.DealCard(Globals.shoe.Pop());
+	    		if (hand.realVal==21 || !hand.isDealer) {
+	    			// If hand is blackjack and is not dealer
+	    			Globals.handsWithBJ.Add(hand);
+	    		}
+	    	}
+	    }
+
+	    public static boolean checkFaceupBlackjack(List<Hand> hands, Hand dealer) {	    	
+	    	int numPlayerHands = hands.Count() - 1;
+	    	if ((dealer.cards[0] == 10) || (dealer.cards[1] == 1)) { 
+	    		for (int i = 0; i < numPlayerHands) {
+	    			if (hands[i].realVal < 21) {
+	    				Stats.playerBank -= hands[i].bet;
+	    				Stats.houseBank += hands[i].bet;
+	    				Stats.losses++;
+	    			} else if (hands[i].realVal == 21) {
+	    				Stats.pushes++;
+	    			}
+	    		}
+	    		return true;
+	    	} else {
+	    		return false;
+	    	}
+	    }
+
         public static void GameLoop() {
             /* 
                while len(shoe) >= shoesize/5:
-                    setup hands, wagers
-                    deal cards
+                    x setup hands, wagers
+                    x deal cards
                     check for dealer bj
                     check for dealer ace-bj and insurance
                     resolve player blackjacks
@@ -229,13 +262,19 @@ namespace BlackjackSimulator {
 
             //Rounds Loop
             while (Globals.shoe.Count() >= (shoeSize/5)) {
+            	// Set up hands
+            	List<Hand> hands = new List<Hand>();                
                 int numPlayerHands = 2; // Soon to be affected by strategy
-                List<Hand> hands = new List<Hand>();
                 decimal startBet = 5.00m; // Soon to be affected by strategy
                 SetupHands(hands, numPlayerHands, startBet);
-                Console.WriteLine("total hands = {0}", hands.Count());
-                
-                
+                Hand dealer = hands[hands.Count()-1];
+
+                // Deal cards to every hand
+                DealStartingCards(hands);
+
+                // Check dealer for blackjack
+
+
                 break; // TODO: remove after debug
             }
         }
