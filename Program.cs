@@ -59,7 +59,12 @@ namespace BlackjackSimulator {
         public bool hasAce = false;
         public bool isSplit = false;
         public bool isDoubled = false;
-        public bool isHouse = false;
+        public bool isDealer = false;
+        public Hand() 
+            : this(0.00m) {}
+        public Hand(decimal bet) {
+        	this.bet = bet;
+        }
         public void DealCard(int card) {
             cards.Add(card);
             hardVal += card;
@@ -81,21 +86,22 @@ namespace BlackjackSimulator {
         public bool IsSoft() {
             bool returnVal = (realVal==hardVal) ? false : true;
             return returnVal;
-        }        
+        }
     }
 
 
     public interface IShoe {
-        public void Generate(int numDecks, int mix);
-        public int Pop();
-        public int Count();
+        void Generate(int numDecks);
+        void Shuffle();
+        int Pop();
+        int Count();
     }
 
 
     public class ShoeList : IShoe {
         public List<int> cards;
 
-        private void Shuffle() {
+        public void Shuffle() {
             Random rng = new Random();
             int n = cards.Count;  
             while (n > 1) {  
@@ -107,7 +113,7 @@ namespace BlackjackSimulator {
             }
         }
 
-        public void Generate(int numDecks, int mix) {
+        public void Generate(int numDecks) {
             cards = new List<int>();
             for (int i = 0; i < numDecks; i++) {
                 for (int j = 0; j < 52; j++) {
@@ -118,12 +124,12 @@ namespace BlackjackSimulator {
                         cards.Add(10);
                 }
             }
-            if (mix == Globals.SHUFFLED) 
-                Shuffle(cards);
         }
 
         public int Pop() {
-            return cards.RemoveAt(cards.Count() - 1);
+        	int topCard = cards[cards.Count()-1];
+        	cards.RemoveAt(cards.Count() - 1);
+            return topCard;
         }
 
         public int Count() {
@@ -133,12 +139,22 @@ namespace BlackjackSimulator {
 
 
     public class ShoeStack : IShoe {
-        public void GenerateShoe(int numDecks, int mix) {
+        public void Generate(int numDecks) {
             //Implement
+        }
+
+        public void Shuffle() {
+        	//Implement
         }
 
         public int Pop() {
             //Implement
+            return 0;
+        }
+
+        public int Count() {
+        	//Implement
+        	return 0;
         }
     }
 
@@ -172,7 +188,16 @@ namespace BlackjackSimulator {
         public static void PrintCards<T>(IEnumerable<T> col) {
             foreach (T item in col)
                 Console.WriteLine(item); // Replace this with your version of printing
-        }
+	    }
+
+	    public static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
+	    	for (int i = 0; i < numPlayerHands; i++) {
+	    		hands.Add(new Hand(startBet));
+	    	}
+	    	Hand dealer = new Hand();
+	    	dealer.isDealer = true;
+	    	hands.Add(dealer);
+	    }
 
         public static void GameLoop() {
             /* 
@@ -200,23 +225,33 @@ namespace BlackjackSimulator {
             */
 
             int shoeSize = Globals.shoe.Count();
-            while (Globals.shoe.Count() >= (shoeSize/5)) {
-                List<Hand> hands = new List<Hand>();
-                int numPlayerHands = 1; // Soon to be affected by strategy
+            Globals.shoe.Pop(); // Burn card
 
+            //Rounds Loop
+            while (Globals.shoe.Count() >= (shoeSize/5)) {
+                int numPlayerHands = 2; // Soon to be affected by strategy
+                List<Hand> hands = new List<Hand>();
+                decimal startBet = 5.00m; // Soon to be affected by strategy
+                SetupHands(hands, numPlayerHands, startBet);
+                Console.WriteLine("total hands = {0}", hands.Count());
+                
+                
+                break; // TODO: remove after debug
             }
         }
 
         public static void RunSimulation(string[] args) {
             Globals.numDecks = 6;
+            Globals.shoe = new ShoeStack();
+            Globals.shoe.Generate(Globals.numDecks);
             if (args.Count() == 1)
                 Globals.runs = Convert.ToInt32(args[0]);
             else 
                 Globals.runs = 1;
             Console.WriteLine(Globals.runs + " runs");
+            // Shoe runs loop
             while (Globals.runs > 0) {
-                Globals.shoe = new ShoeStack();
-                Globals.shoe.Generate(Globals.numDecks, Globals.ORDERED);
+            	Globals.shoe.Shuffle();
                 Console.WriteLine("cards in shoe " + Globals.shoe.Count());
                 GameLoop();
                 Globals.runs--;
