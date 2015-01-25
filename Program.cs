@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace BlackjackSimulator {
+
     public static class Globals {
         public static IShoe shoe;
         public static List<Hand> handsWithBJ;
@@ -28,6 +29,57 @@ namespace BlackjackSimulator {
         public static bool houseStaysOnSoft17 = true;
     }
 
+
+    public class Hand {
+        public List<int> cards = new List<int>();
+        public decimal bet = 0.00m;
+        public decimal insuranceBet = 0.00m;
+        public int hardVal = 0;
+        public int realVal = 0;
+        public bool hasAce = false;
+        public bool isSplit = false;
+        public bool isDoubled = false;
+        public bool isDealer = false;
+
+        public Hand() : this(0.00m) {}
+        public Hand(decimal bet) {
+            this.bet = bet;
+        }
+        public void DealCard(int card) {
+            cards.Add(card);
+            hardVal += card;
+            if (hardVal >= 12) {
+                realVal = hardVal;
+            } else {
+                if (!hasAce) {
+                    if (card != 1) {
+                        realVal = hardVal;
+                    } else {
+                        hasAce = true;
+                        realVal = hardVal + 10;
+                    }
+                } else {
+                    realVal = hardVal + 10;
+                }
+            }
+        }
+        public bool IsSoft() {
+            bool returnVal = (realVal==hardVal) ? false : true;
+            return returnVal;
+        }
+        public void Clear() {
+            this.cards = new List<int>;
+            this.bet = 0.00m;
+            this.insuranceBet = 0.00m;
+            this.hardVal = 0;
+            this.realVal = 0;
+            this.hasAce = false;
+            this.isSplit = false;
+            this.isDoubled = false;
+            this.isDealer = false;
+        }
+    }
+    
 
     public static class Stats {
         public static decimal houseBank = 0.00m;
@@ -130,46 +182,6 @@ namespace BlackjackSimulator {
 
         public static int Split(int r, int c) {
             return splitStrategy[r,c];
-        }
-    }
-
-
-    public class Hand {
-        public List<int> cards = new List<int>();
-        public decimal bet = 0.00m;
-        public decimal insuranceBet = 0.00m;
-        public int hardVal = 0;
-        public int realVal = 0;
-        public bool hasAce = false;
-        public bool isSplit = false;
-        public bool isDoubled = false;
-        public bool isDealer = false;
-        public Hand() 
-            : this(0.00m) {}
-        public Hand(decimal bet) {
-        	this.bet = bet;
-        }
-        public void DealCard(int card) {
-            cards.Add(card);
-            hardVal += card;
-            if (hardVal >= 12) {
-                realVal = hardVal;
-            } else {
-                if (!hasAce) {
-                    if (card != 1) {
-                        realVal = hardVal;
-                    } else {
-                        hasAce = true;
-                        realVal = hardVal + 10;
-                    }
-                } else {
-                    realVal = hardVal + 10;
-                }
-            }
-        }
-        public bool IsSoft() {
-            bool returnVal = (realVal==hardVal) ? false : true;
-            return returnVal;
         }
     }
 
@@ -369,6 +381,22 @@ namespace BlackjackSimulator {
             }
         }
 
+        private static void SplitHand(List<Hand> hands, int index) {
+            Hand oldHand = hands[index];
+            decimal bet = oldHand.bet;
+            Hand splitHand = new Hand(bet);
+            splitHand.isSplit = true;
+            splitHand.DealCard(oldHand.cards[1]);
+            hands.Insert(index+1, splitHand);
+
+            int oldCard = oldHand.cards[0];
+            oldHand.cards.Clear();
+            oldHand.realVal = 0;
+            oldHand.hardVal = 0;
+            oldHand.isSplit = true;
+            oldHand.DealCard(oldCard);
+        }
+
         private static void RoundLoop(List<Hand> hands) {
             Hand dealer = hands[hands.Count()-1];
             int upCard = dealer.cards[0];
@@ -377,6 +405,7 @@ namespace BlackjackSimulator {
             while (i < numPlayerHands) {
                 Hand hand = hands[i];
 
+                // Deal card if hand is result of a split
                 if (hand.cards.Count() == 1) {
                     hand.DealCard(Globals.shoe.Pop());
                     if (hand.cards[0] == 1) {
@@ -386,15 +415,32 @@ namespace BlackjackSimulator {
                 }
 
                 //Check for split
+                int decision = 99; //nothing
+                if (hand.cards[0] == hand.cards[1]) {
+                    decision = Strategy.Split(hand.cards[0], upCard);
+                    switch (decision) {
+                        case Globals.P:
+                            SplitHand(hands, i);
+                            continue;
+                        case Globals.H:
+                            hand.DealCard(Globals.shoe.Pop());
+                            break;
+                        case Globals.K:
+                            break;
+                        case Globals.PH:
+                            if (Globals.doubleAllowedAfterSplit)
+                                SplitHand(hands, i);
+                            continue;                            
+                        case Globals.S:
+                            break;
+                    }
+                }
 
                 //Hand loop
 
                 //If busted or surrendered
-            }
-        }
 
-        public static void ShoeLoop() {
-            /* 
+                 /* 
                     loop over hands:
                        deal card if hand size = 1
                        check for splitting option
@@ -402,8 +448,11 @@ namespace BlackjackSimulator {
                            decisions, decisions
                        if hand busts or surrenders, do stuff and remove it
                        else, increment hand counter
-            */
+                 */
+            }
+        }
 
+        public static void ShoeLoop() {
             int shoeSize = Globals.shoe.Count();
             Globals.shoe.Pop(); // Burn card
 
@@ -428,16 +477,14 @@ namespace BlackjackSimulator {
                 // Pay player blackjacks
                 if (Globals.handsWithBJ.Count() > 0) {
                     PayAllBlackjacks(hands);
-                    numPlayerHands = hands.Count() - 1;
                 }
 
                 // Round loop
-                if (numPlayerHands > 0) {
-                    // Do round loop
+                if (hands.Count() > 1) {
                     RoundLoop(hands);
                 }
 
-                if (numPlayerHands > 0) {
+                if (hands.Count() > 1) {
                     // Deal to house and evaluate
                     // pay and take
                 }
