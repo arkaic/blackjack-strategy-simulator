@@ -47,7 +47,90 @@ namespace BlackjackSimulator {
 
 
     public static class Strategy {
-        public static int e;
+        private const int H =  1;
+        private const int S =  2;
+        private const int DH = 3;
+        private const int DS = 4;
+        private const int P  = 5;
+        private const int PH = 6;
+        private const int RH = 7;
+        private const int K  = 0;
+        private static int[,] hardStrategy = {
+        //   0  1  2  3  4  5  6  7  8  9 10
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //0
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //1
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //2
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //3
+            {0, H, H, H, H, H, H, H, H, H, H}, //4
+            {0, H, H, H, H, H, H, H, H, H, H}, //5
+            {0, H, H, H, H, H, H, H, H, H, H}, //6
+            {0, H, H, H, H, H, H, H, H, H, H}, //7
+            {0, H, H, H, H, H, H, H, H, H, H}, //8
+            {0, H, H,DH,DH,DH,DH, H, H, H, H}, //9
+            {0, H,DH,DH,DH,DH,DH,DH,DH,DH, H}, //10
+            {0, H,DH,DH,DH,DH,DH,DH,DH,DH,DH}, //11
+            {0, H, H, H, S, S, S, H, H, H, H}, //12
+            {0, H, S, S, S, S, S, H, H, H, H}, //13            
+            {0, H, S, S, S, S, S, H, H, H, H}, //14
+            {0, H, S, S, S, S, S, H, H, H,RH}, //15
+            {0,RH, S, S, S, S, S, H, H,RH,RH}, //16
+            {0, S, S, S, S, S, S, S, S, S, S}, //17
+            {0, S, S, S, S, S, S, S, S, S, S}, //18
+            {0, S, S, S, S, S, S, S, S, S, S}, //19
+            {0, S, S, S, S, S, S, S, S, S, S}, //20
+            {0, S, S, S, S, S, S, S, S, S, S}  //21  
+        };
+        private static int[,] softStrategy = {
+        //   0  1  2  3  4  5  6  7  8  9 10
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //0
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //1
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //2 
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //3           
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //5
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //6
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //7
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //8
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //9
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //10
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //11
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //12
+            {0, H, H, H, H,DH,DH, H, H, H, H}, //13
+            {0, H, H, H, H,DH,DH, H, H, H, H}, //14
+            {0, H, H, H,DH,DH,DH, H, H, H, H}, //15
+            {0, H, H, H,DH,DH,DH, H, H, H, H}, //16
+            {0, H, H,DH,DH,DH,DH, H, H, H, H}, //17
+            {0, H, S,DS,DS,DS,DS, S, S, H, H}, //18
+            {0, S, S, S, S, S, S, S, S, S, S}, //19
+            {0, S, S, S, S, S, S, S, S, S, S}, //20
+            {0, S, S, S, S, S, S, S, S, S, S}, //21
+        };
+        private static int[,] splitStrategy = {
+        //    0  1  2  3  4  5  6  7  8  9 10
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //0
+            {0, P, P, P, P, P, P, P, P, P, P}, //1
+            {0, H,PH,PH, P, P, P, P, H, H, H}, //2
+            {0, H,PH,PH, P, P, P, P, H, H, H}, //3
+            {0, H, H, H, H,PH,PH, H, H, H, H}, //4
+            {0, K, K, K, K, K, K, K, K, K, K}, //5
+            {0, H,PH, P, P, P, P, H, H, H, H}, //6
+            {0, H, P, P, P, P, P, P, H, H, H}, //7
+            {0, P, P, P, P, P, P, P, P, P, P}, //8
+            {0, S, P, P, P, P, P, S, P, P, S}, //9
+            {0, K, K, K, K, K, K, K, K, K, K}, //10
+        };
+
+        public static int Hard(int r, int c) {
+            return hardStrategy[r,c];
+        }
+
+        public static int Soft(int r, int c) {
+            return softStrategy[r,c];
+        }
+
+        public static int Split(int r, int c) {
+            return splitStrategy[r,c];
+        }
     }
 
 
@@ -286,15 +369,32 @@ namespace BlackjackSimulator {
             }
         }
 
-        public static void GameLoop() {
+        private static void RoundLoop(List<Hand> hands) {
+            Hand dealer = hands[hands.Count()-1];
+            int upCard = dealer.cards[0];
+            int numPlayerHands = hands.Count() - 1;
+            int i = 0;
+            while (i < numPlayerHands) {
+                Hand hand = hands[i];
+
+                if (hand.cards.Count() == 1) {
+                    hand.DealCard(Globals.shoe.Pop());
+                    if (hand.cards[0] == 1) {
+                        i++;
+                        continue;
+                    }
+                }
+
+                //Check for split
+
+                //Hand loop
+
+                //If busted or surrendered
+            }
+        }
+
+        public static void ShoeLoop() {
             /* 
-               while len(shoe) >= shoesize/5:
-                    x setup hands, wagers
-                    x deal cards
-                    x check for dealer bj
-                    x check for dealer ace-bj and insurance
-                    resolve player blackjacks
-                    
                     loop over hands:
                        deal card if hand size = 1
                        check for splitting option
@@ -302,13 +402,6 @@ namespace BlackjackSimulator {
                            decisions, decisions
                        if hand busts or surrenders, do stuff and remove it
                        else, increment hand counter
-                    
-                    if there are player hands left:
-                        deal to house and evaluate
-                        pay and take
-                    
-                    clear hands
-                    optional: strategy review 
             */
 
             int shoeSize = Globals.shoe.Count();
@@ -335,7 +428,20 @@ namespace BlackjackSimulator {
                 // Pay player blackjacks
                 if (Globals.handsWithBJ.Count() > 0) {
                     PayAllBlackjacks(hands);
+                    numPlayerHands = hands.Count() - 1;
                 }
+
+                // Round loop
+                if (numPlayerHands > 0) {
+                    // Do round loop
+                    RoundLoop(hands);
+                }
+
+                if (numPlayerHands > 0) {
+                    // Deal to house and evaluate
+                    // pay and take
+                }
+
 
                 break; // TODO: remove after debug
             }
@@ -354,13 +460,13 @@ namespace BlackjackSimulator {
             while (Globals.runs > 0) {
             	Globals.shoe.Shuffle();
                 Console.WriteLine("cards in shoe " + Globals.shoe.Count());
-                GameLoop();
+                ShoeLoop();
                 Globals.runs--;
             }   
         }
 
         public static void Main(string[] args) {
-            RunSimulation(args);            
+            RunSimulation(args); 
         }
     }
 }
