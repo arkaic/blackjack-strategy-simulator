@@ -13,16 +13,8 @@ namespace BlackjackSimulator {
         public static int runs; 
         public const int ORDERED = 1;
         public const int SHUFFLED = 2;
-        public const int H =  1;
-        public const int S =  2;
-        public const int DH = 3;
-        public const int DS = 4;
-        public const int P  = 5;
-        public const int PH = 6;
-        public const int RH = 7;
-        public const int K  = 0;
-        public const int NEXT_ROUND = 1;
-        public const int BREAK = 2;
+        public const int NEXT_ROUND = 3;
+        public const int BREAK = 4;
         public static bool doInsurance = false;
         public static bool doubleAllowedAfterSplit = true;
         public static bool surrendersAllowed = true;
@@ -68,7 +60,7 @@ namespace BlackjackSimulator {
             return returnVal;
         }
         public void Clear() {
-            this.cards = new List<int>;
+            this.cards = new List<int>();
             this.bet = 0.00m;
             this.insuranceBet = 0.00m;
             this.hardVal = 0;
@@ -79,7 +71,7 @@ namespace BlackjackSimulator {
             this.isDealer = false;
         }
     }
-    
+
 
     public static class Stats {
         public static decimal houseBank = 0.00m;
@@ -99,14 +91,14 @@ namespace BlackjackSimulator {
 
 
     public static class Strategy {
-        private const int H =  1;
-        private const int S =  2;
-        private const int DH = 3;
-        private const int DS = 4;
-        private const int P  = 5;
-        private const int PH = 6;
-        private const int RH = 7;
-        private const int K  = 0;
+        public const int H =  1; // HIT
+        public const int S =  2; // STAY        
+        public const int DH = 3; // DOUBLE, else HIT
+        public const int DS = 4; // DOUBLE, else STAY
+        public const int P  = 5; // SPLIT
+        public const int PH = 6; // SPLIT if double after split allowed, else HIT
+        public const int RH = 7; // SURRENDER if allowed, else HIT
+        public const int K  = 0;
         private static int[,] hardStrategy = {
         //   0  1  2  3  4  5  6  7  8  9 10
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //0
@@ -256,32 +248,14 @@ namespace BlackjackSimulator {
 
 
     public class SimulatorProgram {
-        static void Testing() {
-            Console.WriteLine("Blackjack Simulator!!!!!!!!");
-            Console.WriteLine("houseBank = {0:C}", Stats.houseBank);
-            Console.WriteLine("playerBank = {0:C}", Stats.houseBank);
-            Stats.houseBank *= (decimal)1.5;
-            Console.WriteLine("Stat.houseBank *= 1.5 = {0:C}", Stats.houseBank);
-            Hand hand = new Hand();
-            Console.WriteLine("hand.hardVal = {0}\nhand.realVal = {1}", hand.hardVal, hand.realVal);
-            Console.WriteLine("issoft() = {0}", hand.IsSoft());
-            Console.WriteLine("test LIST for cards...");
-            hand.cards.Add(5);
-            hand.cards.Add(2);
-            Console.WriteLine("hand.cards = [{0}, {1}]", hand.cards[0], hand.cards[1]);
-            PrintCards(hand.cards);
-        }
 
-        static void Test2() {
-            // rounds up on blackjack payouts to nearest half (1.00, 1.50, 
-            // 2.00, etc);
-            decimal payout = Stats.playerBank * (decimal)1.5;
-            Console.WriteLine("{0:C} => {1:C}", payout, Math.Ceiling(payout*2)/2);
-        }
-
-        public static void PrintCards<T>(IEnumerable<T> col) {
-            foreach (T item in col)
-                Console.WriteLine(item); // Replace this with your version of printing
+        public static void PrintCards<T>(IEnumerable<T> collection) {
+            Console.Write("[");
+            foreach (T item in collection) {
+                Console.Write(item); // Replace this with your version of printing
+                Console.Write(", ");
+            }
+            Console.Write("]");
 	    }
 
 	    public static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
@@ -397,11 +371,49 @@ namespace BlackjackSimulator {
             oldHand.DealCard(oldCard);
         }
 
+        private static int HandLoop(List<Hand> hands, Hand hand, int decision) {
+            Hand dealer = hands[hands.Count()-1];
+            int upCard = dealer.cards[0];
+            HashSet<int> endingDecisions = new HashSet<int>()
+            {Strategy.S, Strategy.DS};
+            HashSet<int> doubleDecisions = new HashSet<int>()
+            {Strategy.DH, Strategy.DS};
+            while (hand.realVal<21 && !endingDecisions.Contains(decision)) {
+                if (!hand.IsSoft() || hand.realVal<13) 
+                    decision = Strategy.Hard(hand.hardVal, upCard);
+                else
+                    decision = Strategy.Soft(hand.realVal, upCard);
+                if (decision == Strategy.H) {
+                    hand.DealCard(Globals.shoe.Pop());
+                } else if (decision == Strategy.S) {
+                    //pass
+                } else if (doubleDecisions.Contains(decision)) {
+                    if (hand.cards.Count() == 2) {
+                        // Double
+                        hand.bet *= 2;
+                        hand.DealCard(Globals.shoe.Pop());
+                        hand.isDoubled = true;
+                        break;
+                    } else if (decision == Strategy.DH){
+                        hand.DealCard(Globals.shoe.Pop());
+                    }
+                } else if (decision == Strategy.RH) {
+                    // Surrender or hit
+                    if (hand.cards.Count() == 2) {
+                        break;
+                    } else {                        
+                        hand.DealCard(Globals.shoe.Pop());
+                    }
+                }
+            }
+            return decision;
+        }
+
         private static void RoundLoop(List<Hand> hands) {
             Hand dealer = hands[hands.Count()-1];
             int upCard = dealer.cards[0];
             int numPlayerHands = hands.Count() - 1;
-            int i = 0;
+            int i = 0; //i is index of the current hand
             while (i < numPlayerHands) {
                 Hand hand = hands[i];
 
@@ -419,36 +431,45 @@ namespace BlackjackSimulator {
                 if (hand.cards[0] == hand.cards[1]) {
                     decision = Strategy.Split(hand.cards[0], upCard);
                     switch (decision) {
-                        case Globals.P:
+                        case Strategy.P:
                             SplitHand(hands, i);
                             continue;
-                        case Globals.H:
+                        case Strategy.H:
                             hand.DealCard(Globals.shoe.Pop());
                             break;
-                        case Globals.K:
+                        case Strategy.K:
                             break;
-                        case Globals.PH:
-                            if (Globals.doubleAllowedAfterSplit)
+                        case Strategy.PH:
+                            if (Globals.doubleAllowedAfterSplit) {
                                 SplitHand(hands, i);
-                            continue;                            
-                        case Globals.S:
+                                continue;
+                            } else {
+                                hand.DealCard(Globals.shoe.Pop());
+                            }
+                            break;
+                        case Strategy.S:
                             break;
                     }
                 }
 
                 //Hand loop
+                decision = HandLoop(hands, hand, decision);
 
-                //If busted or surrendered
-
-                 /* 
-                    loop over hands:
-                       deal card if hand size = 1
-                       check for splitting option
-                       loop for dealing cards:
-                           decisions, decisions
-                       if hand busts or surrenders, do stuff and remove it
-                       else, increment hand counter
-                 */
+                // if busted or surrender
+                if (hand.realVal>21) {
+                    String action = "surrendered";
+                    decimal surrenderedAmt = Math.Ceiling(hand.bet) / 2;
+                    Stats.playerBank -= surrenderedAmt;
+                    Stats.houseBank += surrenderedAmt;
+                    Stats.surrenders++;
+                    Console.WriteLine("[Hand{0}: {1}={2}] {}", i, hand.realVal, hand.);
+                } else if (decision==Strategy.RH && hand.cards.Count()==2) {
+                    // String action = 
+                } else {
+                    // Stay
+                    i++;
+                    //TODO bookmark                
+                }
             }
         }
 
