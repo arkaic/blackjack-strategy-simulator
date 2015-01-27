@@ -249,13 +249,12 @@ namespace BlackjackSimulator {
 
     public class SimulatorProgram {
 
-        public static void PrintCards<T>(IEnumerable<T> collection) {
-            Console.Write("[");
-            foreach (T item in collection) {
-                Console.Write(item); // Replace this with your version of printing
-                Console.Write(", ");
+        public static String CardsToString<T>(IEnumerable<T> cards) {
+            String str = "[";
+            foreach (T item in cards) {
+                str += item.ToString() + ", ";
             }
-            Console.Write("]");
+            return str + "]";
 	    }
 
 	    public static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
@@ -457,18 +456,23 @@ namespace BlackjackSimulator {
 
                 // if busted or surrender
                 if (hand.realVal>21) {
-                    String action = "surrendered";
                     decimal surrenderedAmt = Math.Ceiling(hand.bet) / 2;
                     Stats.playerBank -= surrenderedAmt;
                     Stats.houseBank += surrenderedAmt;
                     Stats.surrenders++;
-                    Console.WriteLine("[Hand{0}: {1}={2}] {}", i, hand.realVal, hand.);
+                    Console.WriteLine("[Hand{0}: {1}={2}] {}", i, hand.realVal, CardsToString(hand.cards), "surrendered");
+                    hands.Remove(hand);
                 } else if (decision==Strategy.RH && hand.cards.Count()==2) {
-                    // String action = 
+                    Stats.playerBank -= hand.bet;
+                    Stats.houseBank += hand.bet;
+                    Stats.losses++;
+                    if (hand.isDoubled)
+                        Stats.losses++;  //Doubles count as two losses
+                    Console.WriteLine("[Hand{0}: {1}={2}] {}", i, hand.realVal, CardsToString(hand.cards), "busted");
+                    hands.Remove(hand);
                 } else {
                     // Stay
                     i++;
-                    //TODO bookmark                
                 }
             }
         }
@@ -524,17 +528,21 @@ namespace BlackjackSimulator {
             else 
                 Globals.runs = 1;
             Console.WriteLine(Globals.runs + " runs");
+
             // Shoe runs loop
             while (Globals.runs > 0) {
             	Globals.shoe.Shuffle();
-                Console.WriteLine("cards in shoe " + Globals.shoe.Count());
                 ShoeLoop();
                 Globals.runs--;
             }   
         }
 
-        public static void Main(string[] args) {
-            RunSimulation(args); 
+        public static void TestArea() {
+
         }
+        public static void Main(string[] args) {
+            // TestArea();
+            RunSimulation(args); 
+        }        
     }
 }
