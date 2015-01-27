@@ -249,13 +249,25 @@ namespace BlackjackSimulator {
 
     public class SimulatorProgram {
 
-        public static String CardsToString<T>(IEnumerable<T> cards) {
-            String str = "[";
-            foreach (T item in cards) {
-                str += item.ToString() + ", ";
-            }
-            return str + "]";
+        private static String CardsToString<T>(IEnumerable<T> cards) {
+            String s = "[";
+            foreach (T item in cards)
+                s += item.ToString() + ", ";            
+            return s + "]";
 	    }
+
+        public static String PrintHands(List<Hand> hands) {
+            if (hands.Count() < 2) {
+                Console.WriteLine("No more player hands");
+                return;
+            } else {
+                for (int i = 0; i < hands.Count()-1; i++) {
+                    String splitStr = (hands[i].isSplit) ? "(split)" : "";
+                    Console.WriteLine("Hand{0} = {1}: {2} {3}", i, hands[i].realVal, CardsToString(hands[i]), splitStr);
+                }
+                Console.WriteLine("DEALER: {}", CardsToString(hands[hands.Count()-1]));
+            }
+        }
 
 	    public static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
 	    	for (int i = 0; i < numPlayerHands; i++) {
@@ -517,7 +529,9 @@ namespace BlackjackSimulator {
                         Stats.pushes++;
                     }
                 }
-            }                
+            }    
+
+            // Do some strategy stuff            
         }
 
         public static void ShoeLoop() {
@@ -535,6 +549,10 @@ namespace BlackjackSimulator {
 
                 // Deal cards to every hand
                 DealStartingCards(hands);
+
+                Console.WriteLine("\nSTARTING HANDS");
+                //TODO print player hands
+                Console.WriteLine("HOUSE: {0}", dealer.cards[0]);
 
                 // Check dealer for blackjack
                 if (CheckDealerForBlackjack(hands)) {
