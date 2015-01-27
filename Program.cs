@@ -477,6 +477,49 @@ namespace BlackjackSimulator {
             }
         }
 
+        private static void DealerLoop(List<Hand> hands) {
+            Hand dealer = hands[hands.Count()-1];
+            // Deal to dealer and evaluate
+            if (Globals.houseStaysOnSoft17) {
+                while (dealer.realVal < 17)
+                    dealer.DealCard(Globals.shoe.Pop());
+            } else {
+                while (dealer.hardVal < 17)
+                    dealer.DealCard(Globals.shoe.Pop());
+            }
+
+            Console.WriteLine("ENDING HANDS");
+            //TODO implement print player hands
+            Console.WriteLine("House = {0}: {1}", dealer.realVal, CardsToString(dealer.cards));
+
+            // Evaluate, pay and take
+            if (dealer.realVal > 21) {
+                // pay all
+                for (int i = 0; i < hands.Count()-1; i++) {
+                    Stats.houseBank -= hands[i].bet;
+                    Stats.playerBank += hands[i].bet;
+                    Stats.wins++;
+                    if (hands[i].isDoubled) Stats.wins++;
+                }
+            } else {
+                for (int i = 0; i < hands.Count()-1; i++) {
+                    if (hands[i].realVal > dealer.realVal) {
+                        Stats.houseBank -= hands[i].bet;
+                        Stats.playerBank += hands[i].bet;
+                        Stats.wins++;
+                        if (hands[i].isDoubled) Stats.wins++;
+                    } else if (hands[i].realVal < dealer.realVal) {
+                        Stats.houseBank += hands[i].bet;
+                        Stats.playerBank -= hands[i].bet;
+                        Stats.losses++;
+                        if (hands[i].isDoubled) Stats.losses++;
+                    } else {
+                        Stats.pushes++;
+                    }
+                }
+            }                
+        }
+
         public static void ShoeLoop() {
             int shoeSize = Globals.shoe.Count();
             Globals.shoe.Pop(); // Burn card
@@ -509,13 +552,10 @@ namespace BlackjackSimulator {
                     RoundLoop(hands);
                 }
 
+                // Dealer loop
                 if (hands.Count() > 1) {
-                    // Deal to house and evaluate
-                    // pay and take
+                    DealerLoop(hands);
                 }
-
-
-                break; // TODO: remove after debug
             }
         }
 
