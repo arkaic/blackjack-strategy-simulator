@@ -150,7 +150,7 @@ namespace BlackjackSimulator {
             {0, S, S, S, S, S, S, S, S, S, S}, //21
         };
         private static int[,] splitStrategy = {
-        //    0  1  2  3  4  5  6  7  8  9 10
+        //   0  1  2  3  4  5  6  7  8  9  10
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //0
             {0, P, P, P, P, P, P, P, P, P, P}, //1
             {0, H,PH,PH, P, P, P, P, H, H, H}, //2
@@ -163,7 +163,11 @@ namespace BlackjackSimulator {
             {0, S, P, P, P, P, P, S, P, P, S}, //9
             {0, K, K, K, K, K, K, K, K, K, K}, //10
         };
-
+        private static int[] insuranceStrategy = {
+        //  0  1  2  3  4  5  6  7  8  9
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1            
+        }
         public static int Hard(int r, int c) {
             return hardStrategy[r,c];
         }
@@ -174,6 +178,10 @@ namespace BlackjackSimulator {
 
         public static int Split(int r, int c) {
             return splitStrategy[r,c];
+        }
+
+        public static int Insure(int r) {
+            return insuranceStrategy[r];
         }
     }
 
@@ -256,7 +264,7 @@ namespace BlackjackSimulator {
             return s + "]";
 	    }
 
-        public static String PrintHands(List<Hand> hands) {
+        private static String PrintHands(List<Hand> hands) {
             if (hands.Count() < 2) {
                 Console.WriteLine("No more player hands");
                 return;
@@ -269,7 +277,7 @@ namespace BlackjackSimulator {
             }
         }
 
-	    public static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
+	    private static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
 	    	for (int i = 0; i < numPlayerHands; i++) {
 	    		hands.Add(new Hand(startBet));
 	    	}
@@ -278,7 +286,7 @@ namespace BlackjackSimulator {
 	    	hands.Add(dealer);
 	    }
 
-	    public static void DealStartingCards(List<Hand> hands) {
+	    private static void DealStartingCards(List<Hand> hands) {
 	    	Globals.handsWithBJ = new List<Hand>();
 	    	foreach (Hand hand in hands) {
 	    		hand.DealCard(Globals.shoe.Pop());
@@ -293,7 +301,7 @@ namespace BlackjackSimulator {
 	    }
 
         // Take all bets except for ties
-	    public static void TakeAllBets(List<Hand> hands) {	
+	    private static void TakeAllBets(List<Hand> hands) {	
             int numPlayerHands = hands.Count() - 1;
             for (int i = 0; i < numPlayerHands; i++) {
                 if (hands[i].realVal < 21) {
@@ -338,7 +346,14 @@ namespace BlackjackSimulator {
             }
         }
 
-        public static bool CheckDealerForBlackjack(List<Hand> hands) {
+        private static void SetupInsurances(List<Hand> hands) {
+            for (int i = 0; i < hands.Count()-1; i++) {
+                if (Strategy.Insure(hands[i].realVal) == 1) 
+                    hands[i].insuranceBet = (decimal) Math.Ceiling(hands[i].bet) / 2;
+            }
+        }
+
+        private static bool CheckDealerForBlackjack(List<Hand> hands) {
             Hand dealer = hands[hands.Count()-1];
             if (dealer.cards[0]==10 && dealer.cards[1]==1) {
                 TakeAllBets(hands);                
@@ -346,12 +361,12 @@ namespace BlackjackSimulator {
             } else if (dealer.cards[0] == 1) {
                 if (Globals.doInsurance) {
                     Console.WriteLine("Doing insurance");
-                    // TODO: implement Setup insurance
+                    SetupInsurances(hands);
                 }
                 if (dealer.cards[1] == 10) {
                     // Dealer has blackjack
                     TakeAllBets(hands);
-                    if (Globals.doInsurance) 
+                    if (Globals.doInsurance)  
                         PayAllInsurances(hands);
                     return true;
                 } else {
@@ -501,7 +516,7 @@ namespace BlackjackSimulator {
             }
 
             Console.WriteLine("ENDING HANDS");
-            //TODO implement print player hands
+            PrintHands(hands);
             Console.WriteLine("House = {0}: {1}", dealer.realVal, CardsToString(dealer.cards));
 
             // Evaluate, pay and take
@@ -534,7 +549,7 @@ namespace BlackjackSimulator {
             // Do some strategy stuff            
         }
 
-        public static void ShoeLoop() {
+        private static void ShoeLoop() {
             int shoeSize = Globals.shoe.Count();
             Globals.shoe.Pop(); // Burn card
 
@@ -551,7 +566,7 @@ namespace BlackjackSimulator {
                 DealStartingCards(hands);
 
                 Console.WriteLine("\nSTARTING HANDS");
-                //TODO print player hands
+                PrintHands(hands);
                 Console.WriteLine("HOUSE: {0}", dealer.cards[0]);
 
                 // Check dealer for blackjack
@@ -577,7 +592,7 @@ namespace BlackjackSimulator {
             }
         }
 
-        public static void RunSimulation(string[] args) {
+        private static void RunSimulation(string[] args) {
             Globals.numDecks = 6;
             Globals.shoe = new ShoeStack();
             Globals.shoe.Generate(Globals.numDecks);
@@ -595,7 +610,7 @@ namespace BlackjackSimulator {
             }   
         }
 
-        public static void TestArea() {
+        private static void TestArea() {
 
         }
         public static void Main(string[] args) {
