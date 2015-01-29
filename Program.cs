@@ -167,7 +167,7 @@ namespace BlackjackSimulator {
         //  0  1  2  3  4  5  6  7  8  9
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1            
-        }
+        };
         public static int Hard(int r, int c) {
             return hardStrategy[r,c];
         }
@@ -229,7 +229,7 @@ namespace BlackjackSimulator {
         }
 
         public int Count() {
-            return cards.Count();
+            return this.cards.Count();
         }
     }
 
@@ -257,6 +257,11 @@ namespace BlackjackSimulator {
 
     public class SimulatorProgram {
 
+        private static void Exit(String msg) {
+            System.Console.WriteLine(msg);
+            System.Environment.Exit(-1);
+        }
+
         private static String CardsToString<T>(IEnumerable<T> cards) {
             String s = "[";
             foreach (T item in cards)
@@ -264,16 +269,17 @@ namespace BlackjackSimulator {
             return s + "]";
 	    }
 
-        private static String PrintHands(List<Hand> hands) {
+        private static void PrintHands(List<Hand> hands) {
             if (hands.Count() < 2) {
                 Console.WriteLine("No more player hands");
                 return;
             } else {
                 for (int i = 0; i < hands.Count()-1; i++) {
                     String splitStr = (hands[i].isSplit) ? "(split)" : "";
-                    Console.WriteLine("Hand{0} = {1}: {2} {3}", i, hands[i].realVal, CardsToString(hands[i]), splitStr);
+                    Console.WriteLine("Hand{0} = {1}: {2} {3}", i, hands[i].realVal, CardsToString(hands[i].cards), splitStr);
                 }
-                Console.WriteLine("DEALER: {}", CardsToString(hands[hands.Count()-1]));
+
+                Console.WriteLine("DEALER: {0}", CardsToString(hands[hands.Count()-1].cards));
             }
         }
 
@@ -293,7 +299,7 @@ namespace BlackjackSimulator {
 	    	}
 	    	foreach (Hand hand in hands) {
 	    		hand.DealCard(Globals.shoe.Pop());
-	    		if (hand.realVal==21 || !hand.isDealer) {
+	    		if (hand.realVal==21 && !hand.isDealer) {
 	    			// If hand is blackjack and is not dealer
 	    			Globals.handsWithBJ.Add(hand);
 	    		}
@@ -438,9 +444,8 @@ namespace BlackjackSimulator {
         private static void RoundLoop(List<Hand> hands) {
             Hand dealer = hands[hands.Count()-1];
             int upCard = dealer.cards[0];
-            int numPlayerHands = hands.Count() - 1;
             int i = 0; //i is index of the current hand
-            while (i < numPlayerHands) {
+            while (i < hands.Count()-1) {
                 Hand hand = hands[i];
 
                 // Deal card if hand is result of a split
@@ -483,19 +488,19 @@ namespace BlackjackSimulator {
 
                 // if busted or surrender
                 if (hand.realVal>21) {
-                    decimal surrenderedAmt = Math.Ceiling(hand.bet) / 2;
-                    Stats.playerBank -= surrenderedAmt;
-                    Stats.houseBank += surrenderedAmt;
-                    Stats.surrenders++;
-                    Console.WriteLine("[Hand{0}: {1}={2}] {}", i, hand.realVal, CardsToString(hand.cards), "surrendered");
-                    hands.Remove(hand);
-                } else if (decision==Strategy.RH && hand.cards.Count()==2) {
                     Stats.playerBank -= hand.bet;
                     Stats.houseBank += hand.bet;
                     Stats.losses++;
                     if (hand.isDoubled)
                         Stats.losses++;  //Doubles count as two losses
-                    Console.WriteLine("[Hand{0}: {1}={2}] {}", i, hand.realVal, CardsToString(hand.cards), "busted");
+                    Console.WriteLine("[Hand{0}: {1}={2}] {3}", i, hand.realVal, CardsToString(hand.cards), "busted");
+                    hands.Remove(hand);
+                } else if (decision==Strategy.RH && hand.cards.Count()==2) {
+                    decimal surrenderedAmt = Math.Ceiling(hand.bet) / 2;
+                    Stats.playerBank -= surrenderedAmt;
+                    Stats.houseBank += surrenderedAmt;
+                    Stats.surrenders++;
+                    Console.WriteLine("[Hand{0}: {1}={2}] {3}", i, hand.realVal, CardsToString(hand.cards), "surrendered");
                     hands.Remove(hand);
                 } else {
                     // Stay
@@ -517,11 +522,11 @@ namespace BlackjackSimulator {
 
             Console.WriteLine("ENDING HANDS");
             PrintHands(hands);
-            Console.WriteLine("House = {0}: {1}", dealer.realVal, CardsToString(dealer.cards));
 
             // Evaluate, pay and take
             if (dealer.realVal > 21) {
                 // pay all
+                Console.WriteLine("Dealer busts, paying....");
                 for (int i = 0; i < hands.Count()-1; i++) {
                     Stats.houseBank -= hands[i].bet;
                     Stats.playerBank += hands[i].bet;
@@ -564,10 +569,9 @@ namespace BlackjackSimulator {
 
                 // Deal cards to every hand
                 DealStartingCards(hands);
-
                 Console.WriteLine("\nSTARTING HANDS");
-                PrintHands(hands);
                 Console.WriteLine("HOUSE: {0}", dealer.cards[0]);
+                PrintHands(hands);
 
                 // Check dealer for blackjack
                 if (CheckDealerForBlackjack(hands)) {
@@ -578,10 +582,10 @@ namespace BlackjackSimulator {
                 // Pay player blackjacks
                 if (Globals.handsWithBJ.Count() > 0) {
                     PayAllBlackjacks(hands);
-                }
+                }                
 
                 // Round loop
-                if (hands.Count() > 1) {
+                if (hands.Count() > 1) {                
                     RoundLoop(hands);
                 }
 
@@ -594,7 +598,7 @@ namespace BlackjackSimulator {
 
         private static void RunSimulation(string[] args) {
             Globals.numDecks = 6;
-            Globals.shoe = new ShoeStack();
+            Globals.shoe = new ShoeList();
             Globals.shoe.Generate(Globals.numDecks);
             if (args.Count() == 1)
                 Globals.runs = Convert.ToInt32(args[0]);
@@ -603,19 +607,24 @@ namespace BlackjackSimulator {
             Console.WriteLine(Globals.runs + " runs");
 
             // Shoe runs loop
-            while (Globals.runs > 0) {
-            	Globals.shoe.Shuffle();
+            while (Globals.runs > 0) {                
+            	Globals.shoe.Shuffle();                
                 ShoeLoop();
                 Globals.runs--;
             }   
         }
 
         private static void TestArea() {
-
+            int i = 5;
+            if (i==5) {
+                i = 3;
+            }
+            return;
         }
         public static void Main(string[] args) {
             // TestArea();
             RunSimulation(args); 
+            Console.WriteLine("Blackjack simulation ends.....");
         }        
     }
 }
