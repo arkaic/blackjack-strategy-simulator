@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Console;
 
 namespace BlackjackSimulator {
 
@@ -558,6 +559,10 @@ namespace BlackjackSimulator {
             int shoeSize = Globals.shoe.Count();
             Globals.shoe.Pop(); // Burn card
 
+            WriteLine("\n\n\n-----------------------------------------");
+            WriteLine("NEW SHOE: {0} cards", shoeSize);
+            WriteLine("-----------------------------------------");
+
             //Rounds Loop
             while (Globals.shoe.Count() >= (shoeSize/5)) {
             	// Set up hands
@@ -596,10 +601,15 @@ namespace BlackjackSimulator {
             }
         }
 
+        private static void PrintStatistics() {
+            WriteLine("\n\n\n\n----------------------------------------");
+            WriteLine("Wins: {0}\nLosses: {1}\nPushes: {2}\nSurrenders: {3}", Stats.wins, Stats.losses, Stats.pushes, Stats.surrenders);
+
+        }
+
         private static void RunSimulation(string[] args) {
             Globals.numDecks = 6;
             Globals.shoe = new ShoeList();
-            Globals.shoe.Generate(Globals.numDecks);
             if (args.Count() == 1)
                 Globals.runs = Convert.ToInt32(args[0]);
             else 
@@ -607,11 +617,14 @@ namespace BlackjackSimulator {
             Console.WriteLine(Globals.runs + " runs");
 
             // Shoe runs loop
-            while (Globals.runs > 0) {                
+            while (Globals.runs > 0) {
+                Globals.shoe.Generate(Globals.numDecks);            
             	Globals.shoe.Shuffle();                
                 ShoeLoop();
                 Globals.runs--;
             }   
+
+            PrintStatistics();
         }
 
         private static void TestArea() {
@@ -624,7 +637,7 @@ namespace BlackjackSimulator {
         public static void Main(string[] args) {
             // TestArea();
             RunSimulation(args); 
-            Console.WriteLine("Blackjack simulation ends.....");
+            Console.WriteLine("\n\n\nBlackjack simulation ends.....");
         }        
     }
 }
