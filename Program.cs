@@ -82,11 +82,22 @@ namespace BlackjackSimulator {
         public static int pushes = 0;
         public static int surrenders = 0;
         public static decimal totalBets = 0.00m;
+        private static decimal lowestNetLoss = 0.00m;
 
         //or get calculated values from somewhere
         //actual value = current (+/-)bankroll divided by total wagers made
         public static decimal ActualEdge() {            
             return playerBank / totalBets;
+        }
+
+        public static pay(decimal amount) {
+            houseBank += amount;
+        }
+
+        public static take(decimal amount) {
+            houseBank -= amount;
+            if (houseBank < lowestNetLoss)
+                lowestNetLoss = houseBank;
         }
     }
 
@@ -198,6 +209,8 @@ namespace BlackjackSimulator {
     public class ShoeList : IShoe {
         public List<int> cards;
 
+        // Decrementing downwards, it chooses value at top index and 
+        // puts it in a random lower index.
         public void Shuffle() {
             Random rng = new Random();
             int n = cards.Count;  
@@ -335,6 +348,7 @@ namespace BlackjackSimulator {
         private static void TakeAllInsurances(List<Hand> hands) {
             int numPlayerHands = hands.Count() - 1;
             for (int i = 0; i < numPlayerHands; i++) {
+                //Stats.take(hands[i].insuranceBet)
                 Stats.houseBank += hands[i].insuranceBet;
                 Stats.playerBank -= hands[i].insuranceBet;
                 hands[i].insuranceBet = 0.00m;
@@ -619,7 +633,7 @@ namespace BlackjackSimulator {
 
             // Shoe runs loop
             while (Globals.runs > 0) {
-                Globals.shoe.Generate(Globals.numDecks);            
+                Globals.shoe.Generate(Globals.numDecks);
                 Globals.shoe.Shuffle();                
                 ShoeLoop();
                 Globals.runs--;
