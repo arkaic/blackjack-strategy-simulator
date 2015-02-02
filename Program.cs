@@ -75,13 +75,13 @@ namespace BlackjackSimulator {
 
 
     public static class Stats {
-        public static decimal playerBank = 0.00m;
-        public static decimal roundBank = 0.00m;
+        public static decimal netGains = 0.00m;
         public static int wins = 0;
         public static int losses = 0;
         public static int pushes = 0;
         public static int surrenders = 0;
-        private static decimal totalBets = 0.00m;
+        private static decimal minBank = 0.00m;
+        private static decimal minRoundBank = 0.00m;
 
         //actual value = current (+/-)bankroll divided by total wagers made?
         public static decimal ActualEdge() {            
@@ -90,11 +90,11 @@ namespace BlackjackSimulator {
         }
 
         public static void Pay(decimal amount) {
-            playerBank += amount;
+            netGains += amount;
         }
 
         public static void Take(decimal amount) {
-            playerBank -= amount;
+            netGains -= amount;
         }
 
         public static void Push(decimal bet) {
@@ -103,22 +103,22 @@ namespace BlackjackSimulator {
 
         // Updates total bets made by comparing to bankroll of round.
         public static void MakeBet(decimal bet) {
-            roundBank += bet; //roundbank is positive
-            if (totalBets < roundBank)
-                totalBets = roundBank;
+            minRoundBank += bet; //minRoundBank is positive
+            if (minBank < minRoundBank)
+                minBank = minRoundBank;
         }
 
         // Called at the beginning of every round loop to keep track of player's
         // current bankroll. Then used to also track total bets that are made
-        public static void SetRoundBankroll() {
-            if (playerBank >= 0) 
-                roundBank = 0;
+        public static void SetMinimumRoundBankroll() {
+            if (netGains >= 0) 
+                minRoundBank = 0;
             else
-                roundBank = Math.Abs(playerBank); 
+                minRoundBank = Math.Abs(netGains); 
         }
 
         public static decimal GetTotalBetsMade() {
-            return totalBets;
+            return minBank;
         }
     }
 
@@ -600,7 +600,7 @@ namespace BlackjackSimulator {
             //Rounds Loop
             while (Globals.shoe.Count() >= (shoeSize/5)) {
                 // Set up hands
-                Stats.SetRoundBankroll();
+                Stats.SetMinimumRoundBankroll();
                 List<Hand> hands = new List<Hand>();                
                 int numPlayerHands = 2; // Soon to be affected by strategy
                 decimal startBet = 5.00m; // Soon to be affected by strategy
@@ -640,8 +640,11 @@ namespace BlackjackSimulator {
             WriteLine("\n\n----------------------------------------");
             WriteLine("Wins: {0}\nLosses: {1}\nPushes: {2}\nSurrenders: {3}", Stats.wins, Stats.losses, Stats.pushes, Stats.surrenders);
             WriteLine("------");
-            WriteLine("Player's net earnings: {0}", Stats.playerBank);
-            WriteLine("Player's total minimum bankroll: {0:C}", Stats.GetTotalBetsMade());
+            if (Stats.netGains < 0)
+                WriteLine("Net loss of ${0}", Stats.netGains);
+            else
+                WriteLine("Net gain of ${0}", Stats.netGains);
+            WriteLine("Total minimum bankroll: {0:C}", Stats.GetTotalBetsMade());
         }     
 
         private static void RunSimulation(string[] args) {
