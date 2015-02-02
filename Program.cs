@@ -75,29 +75,50 @@ namespace BlackjackSimulator {
 
 
     public static class Stats {
-        public static decimal houseBank = 0.00m;
         public static decimal playerBank = 0.00m;
+        public static decimal roundBank = 0.00m;
         public static int wins = 0;
         public static int losses = 0;
         public static int pushes = 0;
         public static int surrenders = 0;
-        public static decimal totalBets = 0.00m;
-        private static decimal lowestNetLoss = 0.00m;
+        private static decimal totalBets = 0.00m;
 
-        //or get calculated values from somewhere
-        //actual value = current (+/-)bankroll divided by total wagers made
+        //actual value = current (+/-)bankroll divided by total wagers made?
         public static decimal ActualEdge() {            
-            return playerBank / totalBets;
+            // implement
+            return 0.00m;
         }
 
-        public static pay(decimal amount) {
-            houseBank += amount;
+        public static void Pay(decimal amount) {
+            playerBank += amount;
         }
 
-        public static take(decimal amount) {
-            houseBank -= amount;
-            if (houseBank < lowestNetLoss)
-                lowestNetLoss = houseBank;
+        public static void Take(decimal amount) {
+            playerBank -= amount;
+        }
+
+        public static void Push(decimal bet) {
+
+        }
+
+        // Updates total bets made by comparing to bankroll of round.
+        public static void MakeBet(decimal bet) {
+            roundBank += bet; //roundbank is positive
+            if (totalBets < roundBank)
+                totalBets = roundBank;
+        }
+
+        // Called at the beginning of every round loop to keep track of player's
+        // current bankroll. Then used to also track total bets that are made
+        public static void SetRoundBankroll() {
+            if (playerBank >= 0) 
+                roundBank = 0;
+            else
+                roundBank = Math.Abs(playerBank); 
+        }
+
+        public static decimal GetTotalBetsMade() {
+            return totalBets;
         }
     }
 
@@ -297,9 +318,11 @@ namespace BlackjackSimulator {
             }
         }
 
-        private static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
+        private static void SetupHands(List<Hand> hands, int numPlayerHands, 
+                decimal startBet) {
             for (int i = 0; i < numPlayerHands; i++) {
                 hands.Add(new Hand(startBet));
+                Stats.MakeBet(startBet);    
             }
             Hand dealer = new Hand();
             dealer.isDealer = true;
@@ -325,10 +348,10 @@ namespace BlackjackSimulator {
             int numPlayerHands = hands.Count() - 1;
             for (int i = 0; i < numPlayerHands; i++) {
                 if (hands[i].realVal < 21) {
-                    Stats.playerBank -= hands[i].bet;
-                    Stats.houseBank += hands[i].bet;
+                    Stats.Take(hands[i].bet);
                     Stats.losses++;
                 } else if (hands[i].realVal == 21) {
+                    Stats.Push(hands[i].bet);
                     Stats.pushes++;
                 }
             }
@@ -339,8 +362,7 @@ namespace BlackjackSimulator {
             for (int i = 0; i < numPlayerHands; i++) {
                 if (hands[i].insuranceBet > 0) {
                     decimal payout = 2 * hands[i].insuranceBet;
-                    Stats.houseBank -= payout;
-                    Stats.playerBank += payout;
+                    Stats.Pay(payout);
                 }
             }
         }
@@ -348,9 +370,7 @@ namespace BlackjackSimulator {
         private static void TakeAllInsurances(List<Hand> hands) {
             int numPlayerHands = hands.Count() - 1;
             for (int i = 0; i < numPlayerHands; i++) {
-                //Stats.take(hands[i].insuranceBet)
-                Stats.houseBank += hands[i].insuranceBet;
-                Stats.playerBank -= hands[i].insuranceBet;
+                Stats.Take(hands[i].insuranceBet);
                 hands[i].insuranceBet = 0.00m;
             }
         }
@@ -360,8 +380,7 @@ namespace BlackjackSimulator {
                 // Round every blackjack payout up to the nearest half.
                 Hand bjHand = Globals.handsWithBJ[i];
                 decimal payout = Math.Ceiling((decimal)1.5 * bjHand.bet * 2) / 2;
-                Stats.playerBank += payout;
-                Stats.houseBank -= payout;
+                Stats.Pay(payout);
                 Stats.wins++;
                 hands.Remove(bjHand);
             }
@@ -369,8 +388,10 @@ namespace BlackjackSimulator {
 
         private static void SetupInsurances(List<Hand> hands) {
             for (int i = 0; i < hands.Count()-1; i++) {
-                if (Strategy.Insure(hands[i].realVal) == 1) 
+                if (Strategy.Insure(hands[i].realVal) == 1) { 
                     hands[i].insuranceBet = (decimal) Math.Ceiling(hands[i].bet) / 2;
+                    Stats.MakeBet(hands[i].insuranceBet);
+                }
             }
         }
 
@@ -406,6 +427,7 @@ namespace BlackjackSimulator {
             Hand oldHand = hands[index];
             decimal bet = oldHand.bet;
             Hand splitHand = new Hand(bet);
+            Stats.MakeBet(bet);
             splitHand.isSplit = true;
             splitHand.DealCard(oldHand.cards[1]);
             hands.Insert(index+1, splitHand);
@@ -433,11 +455,13 @@ namespace BlackjackSimulator {
                 if (decision == Strategy.H) {
                     hand.DealCard(Globals.shoe.Pop());
                 } else if (decision == Strategy.S) {
-                    //pass
+                    //Stay
                 } else if (doubleDecisions.Contains(decision)) {
                     if (hand.cards.Count() == 2) {
                         // Double
-                        hand.bet *= 2;
+                        decimal doubleBet = hand.bet * 2;
+                        hand.bet += doubleBet;
+                        Stats.MakeBet(doubleBet);
                         hand.DealCard(Globals.shoe.Pop());
                         hand.isDoubled = true;
                         break;
@@ -503,8 +527,7 @@ namespace BlackjackSimulator {
 
                 // if busted or surrender
                 if (hand.realVal>21) {
-                    Stats.playerBank -= hand.bet;
-                    Stats.houseBank += hand.bet;
+                    Stats.Take(hand.bet);
                     Stats.losses++;
                     if (hand.isDoubled)
                         Stats.losses++;  //Doubles count as two losses
@@ -512,8 +535,7 @@ namespace BlackjackSimulator {
                     hands.Remove(hand);
                 } else if (decision==Strategy.RH && hand.cards.Count()==2) {
                     decimal surrenderedAmt = Math.Ceiling(hand.bet) / 2;
-                    Stats.playerBank -= surrenderedAmt;
-                    Stats.houseBank += surrenderedAmt;
+                    Stats.Take(surrenderedAmt);
                     Stats.surrenders++;
                     Console.WriteLine("[Hand{0}: {1}={2}] {3}", i, hand.realVal, CardsToString(hand.cards), "surrendered");
                     hands.Remove(hand);
@@ -543,25 +565,23 @@ namespace BlackjackSimulator {
                 // pay all
                 Console.WriteLine("Dealer busts, paying....");
                 for (int i = 0; i < hands.Count()-1; i++) {
-                    Stats.houseBank -= hands[i].bet;
-                    Stats.playerBank += hands[i].bet;
+                    Stats.Pay(hands[i].bet);
                     Stats.wins++;
                     if (hands[i].isDoubled) Stats.wins++;
                 }
             } else {
                 for (int i = 0; i < hands.Count()-1; i++) {
                     if (hands[i].realVal > dealer.realVal) {
-                        Stats.houseBank -= hands[i].bet;
-                        Stats.playerBank += hands[i].bet;
+                        Stats.Pay(hands[i].bet);
                         Stats.wins++;
                         if (hands[i].isDoubled) Stats.wins++;
                     } else if (hands[i].realVal < dealer.realVal) {
-                        Stats.houseBank += hands[i].bet;
-                        Stats.playerBank -= hands[i].bet;
+                        Stats.Take(hands[i].bet);
                         Stats.losses++;
                         if (hands[i].isDoubled) Stats.losses++;
                     } else {
                         Stats.pushes++;
+                        Stats.Push(hands[i].bet);
                     }
                 }
             }    
@@ -580,6 +600,7 @@ namespace BlackjackSimulator {
             //Rounds Loop
             while (Globals.shoe.Count() >= (shoeSize/5)) {
                 // Set up hands
+                Stats.SetRoundBankroll();
                 List<Hand> hands = new List<Hand>();                
                 int numPlayerHands = 2; // Soon to be affected by strategy
                 decimal startBet = 5.00m; // Soon to be affected by strategy
@@ -620,6 +641,7 @@ namespace BlackjackSimulator {
             WriteLine("Wins: {0}\nLosses: {1}\nPushes: {2}\nSurrenders: {3}", Stats.wins, Stats.losses, Stats.pushes, Stats.surrenders);
             WriteLine("------");
             WriteLine("Player's net earnings: {0}", Stats.playerBank);
+            WriteLine("Player's total minimum bankroll: {0:C}", Stats.GetTotalBetsMade());
         }     
 
         private static void RunSimulation(string[] args) {
