@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Linq;    
 using System.Text;
 using System.Threading.Tasks;
 using System.Console;
@@ -83,7 +83,7 @@ namespace BlackjackSimulator {
         public static int surrenders = 0;
         public static decimal totalBets = 0.00m;
 
-	    //or get calculated values from somewhere
+        //or get calculated values from somewhere
         //actual value = current (+/-)bankroll divided by total wagers made
         public static decimal ActualEdge() {            
             return playerBank / totalBets;
@@ -224,8 +224,8 @@ namespace BlackjackSimulator {
         }
 
         public int Pop() {
-        	int topCard = cards[cards.Count()-1];
-        	cards.RemoveAt(cards.Count() - 1);
+            int topCard = cards[cards.Count()-1];
+            cards.RemoveAt(cards.Count() - 1);
             return topCard;
         }
 
@@ -241,7 +241,7 @@ namespace BlackjackSimulator {
         }
 
         public void Shuffle() {
-        	//Implement
+            //Implement
         }
 
         public int Pop() {
@@ -250,8 +250,8 @@ namespace BlackjackSimulator {
         }
 
         public int Count() {
-        	//Implement
-        	return 0;
+            //Implement
+            return 0;
         }
     }
 
@@ -268,7 +268,7 @@ namespace BlackjackSimulator {
             foreach (T item in cards)
                 s += item.ToString() + ", ";            
             return s + "]";
-	    }
+        }
 
         private static void PrintHands(List<Hand> hands) {
             if (hands.Count() < 2) {
@@ -284,31 +284,31 @@ namespace BlackjackSimulator {
             }
         }
 
-	    private static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
-	    	for (int i = 0; i < numPlayerHands; i++) {
-	    		hands.Add(new Hand(startBet));
-	    	}
-	    	Hand dealer = new Hand();
-	    	dealer.isDealer = true;
-	    	hands.Add(dealer);
-	    }
+        private static void SetupHands(List<Hand> hands, int numPlayerHands, decimal startBet) {
+            for (int i = 0; i < numPlayerHands; i++) {
+                hands.Add(new Hand(startBet));
+            }
+            Hand dealer = new Hand();
+            dealer.isDealer = true;
+            hands.Add(dealer);
+        }
 
-	    private static void DealStartingCards(List<Hand> hands) {
-	    	Globals.handsWithBJ = new List<Hand>();
-	    	foreach (Hand hand in hands) {
-	    		hand.DealCard(Globals.shoe.Pop());
-	    	}
-	    	foreach (Hand hand in hands) {
-	    		hand.DealCard(Globals.shoe.Pop());
-	    		if (hand.realVal==21 && !hand.isDealer) {
-	    			// If hand is blackjack and is not dealer
-	    			Globals.handsWithBJ.Add(hand);
-	    		}
-	    	}
-	    }
+        private static void DealStartingCards(List<Hand> hands) {
+            Globals.handsWithBJ = new List<Hand>();
+            foreach (Hand hand in hands) {
+                hand.DealCard(Globals.shoe.Pop());
+            }
+            foreach (Hand hand in hands) {
+                hand.DealCard(Globals.shoe.Pop());
+                if (hand.realVal==21 && !hand.isDealer) {
+                    // If hand is blackjack and is not dealer
+                    Globals.handsWithBJ.Add(hand);
+                }
+            }
+        }
 
         // Take all bets except for ties
-	    private static void TakeAllBets(List<Hand> hands) {	
+        private static void TakeAllBets(List<Hand> hands) { 
             int numPlayerHands = hands.Count() - 1;
             for (int i = 0; i < numPlayerHands; i++) {
                 if (hands[i].realVal < 21) {
@@ -565,8 +565,8 @@ namespace BlackjackSimulator {
 
             //Rounds Loop
             while (Globals.shoe.Count() >= (shoeSize/5)) {
-            	// Set up hands
-            	List<Hand> hands = new List<Hand>();                
+                // Set up hands
+                List<Hand> hands = new List<Hand>();                
                 int numPlayerHands = 2; // Soon to be affected by strategy
                 decimal startBet = 5.00m; // Soon to be affected by strategy
                 SetupHands(hands, numPlayerHands, startBet);
@@ -602,10 +602,11 @@ namespace BlackjackSimulator {
         }
 
         private static void PrintStatistics() {
-            WriteLine("\n\n\n\n----------------------------------------");
+            WriteLine("\n\n----------------------------------------");
             WriteLine("Wins: {0}\nLosses: {1}\nPushes: {2}\nSurrenders: {3}", Stats.wins, Stats.losses, Stats.pushes, Stats.surrenders);
-
-        }
+            WriteLine("------");
+            WriteLine("Player's net earnings: {0}", Stats.playerBank);
+        }     
 
         private static void RunSimulation(string[] args) {
             Globals.numDecks = 6;
@@ -619,7 +620,7 @@ namespace BlackjackSimulator {
             // Shoe runs loop
             while (Globals.runs > 0) {
                 Globals.shoe.Generate(Globals.numDecks);            
-            	Globals.shoe.Shuffle();                
+                Globals.shoe.Shuffle();                
                 ShoeLoop();
                 Globals.runs--;
             }   
