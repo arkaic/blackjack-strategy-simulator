@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;    
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Console;
+// using NUnit.Framework;
 
 namespace BlackjackSimulator {
 
@@ -20,6 +20,8 @@ namespace BlackjackSimulator {
         public static bool doubleAllowedAfterSplit = true;
         public static bool surrendersAllowed = true;
         public static bool houseStaysOnSoft17 = true;
+        public static Random rng = null;
+        public static decimal betAmt = 5.00m;
     }
 
 
@@ -38,6 +40,8 @@ namespace BlackjackSimulator {
         public Hand(decimal bet) {
             this.bet = bet;
         }
+
+        // Range of values for card = [1,10]
         public void DealCard(int card) {
             cards.Add(card);
             hardVal += card;
@@ -233,7 +237,10 @@ namespace BlackjackSimulator {
         // Decrementing downwards, it chooses value at top index and 
         // puts it in a random lower index.
         public void Shuffle() {
-            Random rng = new Random();
+            if (Globals.rng == null) Globals.rng = new Random((int)DateTime.Now.Ticks);
+            // Random rng = new Random(Guid.NewGuid().GetHashCode());
+            Random rng = new Random((int)DateTime.Now.Ticks);
+            // Random rng = Globals.rng;            
             int n = cards.Count;  
             while (n > 1) {  
                 n--;  
@@ -440,6 +447,9 @@ namespace BlackjackSimulator {
             oldHand.DealCard(oldCard);
         }
 
+        /*======================================================================
+                                Hand Loop
+         =====================================================================*/
         private static int HandLoop(List<Hand> hands, Hand hand, int decision) {
             Hand dealer = hands[hands.Count()-1];
             int upCard = dealer.cards[0];
@@ -480,6 +490,9 @@ namespace BlackjackSimulator {
             return decision;
         }
 
+        /*======================================================================
+                                Round Loop
+         =====================================================================*/
         private static void RoundLoop(List<Hand> hands) {
             Hand dealer = hands[hands.Count()-1];
             int upCard = dealer.cards[0];
@@ -522,15 +535,16 @@ namespace BlackjackSimulator {
                     }
                 }
 
-                //Hand loop
+                /*--------------------------------------------------------------
+                                   Hand loop call
+                --------------------------------------------------------------*/
                 decision = HandLoop(hands, hand, decision);
 
                 // if busted or surrender
                 if (hand.realVal>21) {
                     Stats.Take(hand.bet);
                     Stats.losses++;
-                    if (hand.isDoubled)
-                        Stats.losses++;  //Doubles count as two losses
+                    // if (hand.isDoubled) Stats.losses++;  //Doubles count as two losses
                     Console.WriteLine("[Hand{0}: {1}={2}] {3}", i, hand.realVal, CardsToString(hand.cards), "busted");
                     hands.Remove(hand);
                 } else if (decision==Strategy.RH && hand.cards.Count()==2) {
@@ -546,6 +560,9 @@ namespace BlackjackSimulator {
             }
         }
 
+        /*======================================================================
+                                Dealer Loop
+         =====================================================================*/
         private static void DealerLoop(List<Hand> hands) {
             Hand dealer = hands[hands.Count()-1];
             // Deal to dealer and evaluate
@@ -574,28 +591,30 @@ namespace BlackjackSimulator {
                     if (hands[i].realVal > dealer.realVal) {
                         Stats.Pay(hands[i].bet);
                         Stats.wins++;
-                        if (hands[i].isDoubled) Stats.wins++;
+                        // if (hands[i].isDoubled) Stats.wins++;
                     } else if (hands[i].realVal < dealer.realVal) {
                         Stats.Take(hands[i].bet);
                         Stats.losses++;
-                        if (hands[i].isDoubled) Stats.losses++;
+                        // if (hands[i].isDoubled) Stats.losses++;
                     } else {
                         Stats.pushes++;
                         Stats.Push(hands[i].bet);
                     }
                 }
             }    
-
             // Do some strategy stuff            
         }
 
+        /*======================================================================
+                                SHOE Loop
+         =====================================================================*/
         private static void ShoeLoop() {
             int shoeSize = Globals.shoe.Count();
             Globals.shoe.Pop(); // Burn card
 
-            WriteLine("\n\n\n-----------------------------------------");
-            WriteLine("NEW SHOE: {0} cards", shoeSize);
-            WriteLine("-----------------------------------------");
+            Console.WriteLine("\n\n\n-----------------------------------------");
+            Console.WriteLine("NEW SHOE: {0} cards", shoeSize);
+            Console.WriteLine("-----------------------------------------");
 
             //Rounds Loop
             while (Globals.shoe.Count() >= (shoeSize/5)) {
@@ -603,8 +622,7 @@ namespace BlackjackSimulator {
                 Stats.SetMinimumRoundBankroll();
                 List<Hand> hands = new List<Hand>();                
                 int numPlayerHands = 2; // Soon to be affected by strategy
-                decimal startBet = 5.00m; // Soon to be affected by strategy
-                SetupHands(hands, numPlayerHands, startBet);
+                SetupHands(hands, numPlayerHands, Globals.betAmt);
                 Hand dealer = hands[hands.Count()-1];
 
                 // Deal cards to every hand
@@ -612,7 +630,6 @@ namespace BlackjackSimulator {
                 Console.WriteLine("\nSTARTING HANDS");
                 Console.WriteLine("HOUSE: {0}", dealer.cards[0]);
                 PrintHands(hands);
-
                 // Check dealer for blackjack
                 if (CheckDealerForBlackjack(hands)) {
                     Console.WriteLine("END ROUND: HOUSE HAS BJ");
@@ -637,17 +654,23 @@ namespace BlackjackSimulator {
         }
 
         private static void PrintStatistics() {
-            WriteLine("\n\n----------------------------------------");
-            WriteLine("Wins: {0}\nLosses: {1}\nPushes: {2}\nSurrenders: {3}", Stats.wins, Stats.losses, Stats.pushes, Stats.surrenders);
-            WriteLine("------");
+            Console.WriteLine("\n\n----------------------------------------");
+            Console.WriteLine("Wins: {0}\nLosses: {1}\nPushes: {2}\nSurrenders: {3}", Stats.wins, Stats.losses, Stats.pushes, Stats.surrenders);
+            Console.WriteLine("-------------------------------------");
+            Console.WriteLine("Bet per hand: ${0}", Globals.betAmt);
             if (Stats.netGains < 0)
-                WriteLine("Net loss of ${0}", Stats.netGains);
+                Console.WriteLine("Net loss of ${0}", Stats.netGains);
             else
-                WriteLine("Net gain of ${0}", Stats.netGains);
-            WriteLine("Total minimum bankroll: {0:C}", Stats.GetTotalBetsMade());
-        }     
+                Console.WriteLine("Net gain of ${0}", Stats.netGains);
+            Console.WriteLine("Total minimum bankroll: {0:C}", Stats.GetTotalBetsMade());
+            Console.WriteLine("{0:N2} times the bankroll net gain/loss", Stats.netGains/Stats.GetTotalBetsMade());
+        }
 
+        /*======================================================================
+                                    Main Function
+         =====================================================================*/
         private static void RunSimulation(string[] args) {
+            Stats.netGains = 0.00m;
             Globals.numDecks = 6;
             Globals.shoe = new ShoeList();
             if (args.Count() == 1)
@@ -659,7 +682,7 @@ namespace BlackjackSimulator {
             // Shoe runs loop
             while (Globals.runs > 0) {
                 Globals.shoe.Generate(Globals.numDecks);
-                Globals.shoe.Shuffle();                
+                Globals.shoe.Shuffle();          
                 ShoeLoop();
                 Globals.runs--;
             }   
@@ -667,17 +690,8 @@ namespace BlackjackSimulator {
             PrintStatistics();
         }
 
-        private static void TestArea() {
-            int i = 5;
-            if (i==5) {
-                i = 3;
-            }
-            return;
-        }
         public static void Main(string[] args) {
-            // TestArea();
-            RunSimulation(args); 
-            Console.WriteLine("\n\n\nBlackjack simulation ends.....");
+             RunSimulation(args);
         }        
     }
 }
